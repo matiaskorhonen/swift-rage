@@ -1,0 +1,7 @@
+[workspace]
+members = ["bindings-gen","swift-rage-ffi"]
+resolver = "2"
+
+[workspace.dependencies]
+age = { version = "0.10", features = ["armor", "ssh"] }
+uniffi = { version = "0.28", features = ["bindgen"] }

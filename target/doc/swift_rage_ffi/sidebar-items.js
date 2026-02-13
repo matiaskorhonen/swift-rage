@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RageError"],"fn":["decrypt_file","decrypt_file_with_passphrase","encrypt_file","encrypt_file_with_passphrase","generate_identity","identity_to_recipient","parse_file_metadata","parse_identity","parse_recipient"],"struct":["FileMetadata","Identity","Recipient"]};

@@ -1,0 +1,9 @@
+[package]
+name = "bindings-gen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uniffi.workspace = true
+uniffi_bindgen = "0.28"
+camino = "1.1"
