@@ -39,6 +39,8 @@ To build binaries locally (requires macOS and Rust toolchain):
 ./build-binary.sh
 ```
 
+The script is already marked as executable in the repository.
+
 This will create a `build` directory with:
 - Platform-specific libraries
 - Universal (fat) libraries for macOS and iOS Simulator

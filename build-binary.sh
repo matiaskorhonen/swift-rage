@@ -29,35 +29,35 @@ echo "Building for macOS x86_64..."
 rustup target add x86_64-apple-darwin
 cargo build --release --manifest-path swift-rage-ffi/Cargo.toml --target x86_64-apple-darwin
 mkdir -p "${OUTPUT_DIR}/macos-x86_64"
-cp target/x86_64-apple-darwin/release/libswift_rage_ffi.* "${OUTPUT_DIR}/macos-x86_64/" 2>/dev/null || true
+cp target/x86_64-apple-darwin/release/libswift_rage_ffi.a "${OUTPUT_DIR}/macos-x86_64/"
 
 # Build for macOS arm64
 echo "Building for macOS arm64..."
 rustup target add aarch64-apple-darwin
 cargo build --release --manifest-path swift-rage-ffi/Cargo.toml --target aarch64-apple-darwin
 mkdir -p "${OUTPUT_DIR}/macos-arm64"
-cp target/aarch64-apple-darwin/release/libswift_rage_ffi.* "${OUTPUT_DIR}/macos-arm64/" 2>/dev/null || true
+cp target/aarch64-apple-darwin/release/libswift_rage_ffi.a "${OUTPUT_DIR}/macos-arm64/"
 
 # Build for iOS arm64
 echo "Building for iOS arm64..."
 rustup target add aarch64-apple-ios
 cargo build --release --manifest-path swift-rage-ffi/Cargo.toml --target aarch64-apple-ios
 mkdir -p "${OUTPUT_DIR}/ios-arm64"
-cp target/aarch64-apple-ios/release/libswift_rage_ffi.* "${OUTPUT_DIR}/ios-arm64/" 2>/dev/null || true
+cp target/aarch64-apple-ios/release/libswift_rage_ffi.a "${OUTPUT_DIR}/ios-arm64/"
 
 # Build for iOS Simulator x86_64
 echo "Building for iOS Simulator x86_64..."
 rustup target add x86_64-apple-ios
 cargo build --release --manifest-path swift-rage-ffi/Cargo.toml --target x86_64-apple-ios
 mkdir -p "${OUTPUT_DIR}/ios-simulator-x86_64"
-cp target/x86_64-apple-ios/release/libswift_rage_ffi.* "${OUTPUT_DIR}/ios-simulator-x86_64/" 2>/dev/null || true
+cp target/x86_64-apple-ios/release/libswift_rage_ffi.a "${OUTPUT_DIR}/ios-simulator-x86_64/"
 
 # Build for iOS Simulator arm64
 echo "Building for iOS Simulator arm64..."
 rustup target add aarch64-apple-ios-sim
 cargo build --release --manifest-path swift-rage-ffi/Cargo.toml --target aarch64-apple-ios-sim
 mkdir -p "${OUTPUT_DIR}/ios-simulator-arm64"
-cp target/aarch64-apple-ios-sim/release/libswift_rage_ffi.* "${OUTPUT_DIR}/ios-simulator-arm64/" 2>/dev/null || true
+cp target/aarch64-apple-ios-sim/release/libswift_rage_ffi.a "${OUTPUT_DIR}/ios-simulator-arm64/"
 
 # Create universal libraries for macOS
 echo "Creating universal library for macOS..."
