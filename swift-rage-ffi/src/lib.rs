@@ -170,7 +170,8 @@ pub fn encrypt_file(
         std::io::copy(&mut input_reader, &mut writer)?;
         let armored_writer = writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
         let buf_writer = armored_writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
-        buf_writer.into_inner().map_err(|e| RageError::IoError(e.to_string()))?;
+        // Explicitly get the inner File to ensure the BufWriter is flushed
+        let _ = buf_writer.into_inner().map_err(|e| RageError::IoError(e.to_string()))?;
     } else {
         let mut writer = encryptor
             .wrap_output(BufWriter::new(output_file))
@@ -212,7 +213,8 @@ pub fn encrypt_file_with_passphrase(
         std::io::copy(&mut input_reader, &mut writer)?;
         let armored_writer = writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
         let buf_writer = armored_writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
-        buf_writer.into_inner().map_err(|e| RageError::IoError(e.to_string()))?;
+        // Explicitly get the inner File to ensure the BufWriter is flushed
+        let _ = buf_writer.into_inner().map_err(|e| RageError::IoError(e.to_string()))?;
     } else {
         let mut writer = encryptor
             .wrap_output(BufWriter::new(output_file))
