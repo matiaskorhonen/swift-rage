@@ -1,0 +1,52 @@
+[Error]
+enum RageError {
+  "IoError",
+  "DecryptionError",
+  "EncryptionError",
+  "InvalidKey",
+  "InvalidRecipient",
+  "ParseError",
+  "Utf8Error",
+};
+
+dictionary Identity {
+  string key_data;
+};
+
+dictionary Recipient {
+  string key_data;
+};
+
+dictionary FileMetadata {
+  sequence<string> recipients;
+  boolean is_armored;
+};
+
+namespace swift_rage {
+  [Throws=RageError]
+  Identity generate_identity();
+
+  [Throws=RageError]
+  Identity parse_identity(string identity_str);
+
+  [Throws=RageError]
+  Recipient identity_to_recipient(Identity identity);
+
+  [Throws=RageError]
+  Recipient parse_recipient(string recipient_str);
+
+  [Throws=RageError]
+  FileMetadata parse_file_metadata(string file_path);
+
+  [Throws=RageError]
+  void encrypt_file(string input_path, string output_path, sequence<Recipient> recipients, boolean armor);
+
+  [Throws=RageError]
+  void encrypt_file_with_passphrase(string input_path, string output_path, string passphrase, boolean armor);
+
+  [Throws=RageError]
+  string decrypt_file(string input_path, sequence<Identity> identities);
+
+  [Throws=RageError]
+  string decrypt_file_with_passphrase(string input_path, string passphrase);
+};

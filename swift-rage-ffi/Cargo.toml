@@ -1,0 +1,18 @@
+[package]
+name = "swift-rage-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+age.workspace = true
+uniffi.workspace = true
+secrecy = "0.8"
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+
+[build-dependencies]
+uniffi = { workspace = true, features = ["build"] }
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+name = "swift_rage_ffi"

@@ -1,0 +1,22 @@
+# Rust
+target/
+Cargo.lock
+
+# Swift
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+
+# Generated files
+generated/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary test files
+*.tmp
