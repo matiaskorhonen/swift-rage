@@ -4,4 +4,4 @@ resolver = "2"
 
 [workspace.dependencies]
 age = { version = "0.10", features = ["armor", "ssh"] }
-uniffi = { version = "0.28", features = ["bindgen"] }
+uniffi = { version = "0.31", features = ["bindgen"] }

@@ -159,7 +159,7 @@ SwiftRage uses [UniFFI](https://mozilla.github.io/uniffi-rs/) to generate Swift 
 
 ## Testing
 
-Current test coverage: 15/17 tests passing (93%)
+All 17 tests passing (100% coverage)
 
 Run tests with:
 ```bash
