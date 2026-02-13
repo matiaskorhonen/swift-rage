@@ -53,15 +53,6 @@ swift build
 LD_LIBRARY_PATH=./target/release swift test
 ```
 
-#### Manual Build (Alternative)
-
-If you prefer to build Rust and generate bindings separately, you can still use the legacy `build.sh` script:
-
-```bash
-./build.sh   # Builds Rust library and generates bindings
-swift build  # Builds Swift package
-```
-
 ## Quick Start
 
 ### Encrypting and Decrypting with Keys
