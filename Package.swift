@@ -16,6 +16,10 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-testing.git", from: "0.12.0"),
     ],
     targets: [
+        .plugin(
+            name: "RustBuildPlugin",
+            capability: .buildTool()
+        ),
         .systemLibrary(
             name: "SwiftRageFFI",
             path: "swift-rage-ffi",
@@ -32,7 +36,8 @@ let package = Package(
             linkerSettings: [
                 .unsafeFlags(["-L", "/home/runner/work/swift-rage/swift-rage/target/release"], .when(platforms: [.linux, .macOS])),
                 .linkedLibrary("swift_rage_ffi", .when(platforms: [.linux, .macOS]))
-            ]
+            ],
+            plugins: ["RustBuildPlugin"]
         ),
         .testTarget(
             name: "SwiftRageTests",

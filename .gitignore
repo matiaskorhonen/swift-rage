@@ -10,6 +10,7 @@ Cargo.lock
 
 # Generated files
 generated/
+Sources/SwiftRage/swift_rage.swift
 
 # macOS
 .DS_Store
