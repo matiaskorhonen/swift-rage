@@ -81,7 +81,13 @@ struct RustBuildPlugin: BuildToolPlugin {
         }
         
         // Try common cargo locations
-        let homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path
+        let homeDirectory: String
+        if #available(macOS 13.0, *) {
+            homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path()
+        } else {
+            homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path
+        }
+        
         let possiblePaths = [
             "\(homeDirectory)/.cargo/bin/cargo",
             "/usr/local/bin/cargo",

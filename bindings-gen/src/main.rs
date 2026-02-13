@@ -11,7 +11,22 @@ fn main() {
     // Parse command line arguments or use defaults
     let (udl_file, out_dir) = if args.len() >= 3 {
         // Arguments: <udl_path> <output_dir>
-        (PathBuf::from(&args[1]), PathBuf::from(&args[2]))
+        let udl = PathBuf::from(&args[1]);
+        let out = PathBuf::from(&args[2]);
+        
+        // Validate UDL file exists
+        if !udl.exists() {
+            eprintln!("Error: UDL file not found: {}", udl.display());
+            eprintln!("Expected a .udl file at the specified path.");
+            std::process::exit(1);
+        }
+        
+        if !udl.is_file() {
+            eprintln!("Error: UDL path is not a file: {}", udl.display());
+            std::process::exit(1);
+        }
+        
+        (udl, out)
     } else {
         // Default behavior for backward compatibility
         (
