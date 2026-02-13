@@ -281,7 +281,7 @@ private func makeRustCall<T, E: Swift.Error>(
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T,
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
-    uniffiEnsureInitialized()
+    uniffiEnsureSwiftRageFfiInitialized()
     var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
@@ -352,18 +352,29 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-fileprivate class UniffiHandleMap<T> {
-    private var map: [UInt64: T] = [:]
+// Initial value and increment amount for handles. 
+// These ensure that SWIFT handles always have the lowest bit set
+fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
+fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
+
+fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
+    // All mutation happens with this lock held, which is why we implement @unchecked Sendable.
     private let lock = NSLock()
-    private var currentHandle: UInt64 = 1
+    private var map: [UInt64: T] = [:]
+    private var currentHandle: UInt64 = UNIFFI_HANDLEMAP_INITIAL
 
     func insert(obj: T) -> UInt64 {
         lock.withLock {
-            let handle = currentHandle
-            currentHandle += 1
-            map[handle] = obj
-            return handle
+            return doInsert(obj)
         }
+    }
+
+    // Low-level insert function, this assumes `lock` is held.
+    private func doInsert(_ obj: T) -> UInt64 {
+        let handle = currentHandle
+        currentHandle += UNIFFI_HANDLEMAP_DELTA
+        map[handle] = obj
+        return handle
     }
 
      func get(handle: UInt64) throws -> T {
@@ -372,6 +383,15 @@ fileprivate class UniffiHandleMap<T> {
                 throw UniffiInternalError.unexpectedStaleHandle
             }
             return obj
+        }
+    }
+
+     func clone(handle: UInt64) throws -> UInt64 {
+        try lock.withLock {
+            guard let obj = map[handle] else {
+                throw UniffiInternalError.unexpectedStaleHandle
+            }
+            return doInsert(obj)
         }
     }
 
@@ -462,7 +482,7 @@ fileprivate struct FfiConverterString: FfiConverter {
 }
 
 
-public struct FileMetadata {
+public struct FileMetadata: Equatable, Hashable {
     public var recipients: [String]
     public var isArmored: Bool
 
@@ -472,27 +492,15 @@ public struct FileMetadata {
         self.recipients = recipients
         self.isArmored = isArmored
     }
+
+    
+
+    
 }
 
-
-
-extension FileMetadata: Equatable, Hashable {
-    public static func ==(lhs: FileMetadata, rhs: FileMetadata) -> Bool {
-        if lhs.recipients != rhs.recipients {
-            return false
-        }
-        if lhs.isArmored != rhs.isArmored {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(recipients)
-        hasher.combine(isArmored)
-    }
-}
-
+#if compiler(>=6)
+extension FileMetadata: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -528,7 +536,7 @@ public func FfiConverterTypeFileMetadata_lower(_ value: FileMetadata) -> RustBuf
 }
 
 
-public struct Identity {
+public struct Identity: Equatable, Hashable {
     public var keyData: String
 
     // Default memberwise initializers are never public by default, so we
@@ -536,23 +544,15 @@ public struct Identity {
     public init(keyData: String) {
         self.keyData = keyData
     }
+
+    
+
+    
 }
 
-
-
-extension Identity: Equatable, Hashable {
-    public static func ==(lhs: Identity, rhs: Identity) -> Bool {
-        if lhs.keyData != rhs.keyData {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(keyData)
-    }
-}
-
+#if compiler(>=6)
+extension Identity: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -586,7 +586,7 @@ public func FfiConverterTypeIdentity_lower(_ value: Identity) -> RustBuffer {
 }
 
 
-public struct Recipient {
+public struct Recipient: Equatable, Hashable {
     public var keyData: String
 
     // Default memberwise initializers are never public by default, so we
@@ -594,23 +594,15 @@ public struct Recipient {
     public init(keyData: String) {
         self.keyData = keyData
     }
+
+    
+
+    
 }
 
-
-
-extension Recipient: Equatable, Hashable {
-    public static func ==(lhs: Recipient, rhs: Recipient) -> Bool {
-        if lhs.keyData != rhs.keyData {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(keyData)
-    }
-}
-
+#if compiler(>=6)
+extension Recipient: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -644,7 +636,7 @@ public func FfiConverterTypeRecipient_lower(_ value: Recipient) -> RustBuffer {
 }
 
 
-public enum RageError {
+public enum RageError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
@@ -662,8 +654,21 @@ public enum RageError {
     
     case Utf8Error(message: String)
     
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
 }
 
+#if compiler(>=6)
+extension RageError: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -738,12 +743,18 @@ public struct FfiConverterTypeRageError: FfiConverterRustBuffer {
 }
 
 
-extension RageError: Equatable, Hashable {}
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRageError_lift(_ buf: RustBuffer) throws -> RageError {
+    return try FfiConverterTypeRageError.lift(buf)
+}
 
-extension RageError: Foundation.LocalizedError {
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRageError_lower(_ value: RageError) -> RustBuffer {
+    return FfiConverterTypeRageError.lower(value)
 }
 
 #if swift(>=5.8)
@@ -820,23 +831,23 @@ fileprivate struct FfiConverterSequenceTypeRecipient: FfiConverterRustBuffer {
         return seq
     }
 }
-public func decryptFile(inputPath: String, identities: [Identity])throws  -> String {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func decryptFile(inputPath: String, identities: [Identity])throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_decrypt_file(
         FfiConverterString.lower(inputPath),
         FfiConverterSequenceTypeIdentity.lower(identities),$0
     )
 })
 }
-public func decryptFileWithPassphrase(inputPath: String, passphrase: String)throws  -> String {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func decryptFileWithPassphrase(inputPath: String, passphrase: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_decrypt_file_with_passphrase(
         FfiConverterString.lower(inputPath),
         FfiConverterString.lower(passphrase),$0
     )
 })
 }
-public func encryptFile(inputPath: String, outputPath: String, recipients: [Recipient], armor: Bool)throws  {try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func encryptFile(inputPath: String, outputPath: String, recipients: [Recipient], armor: Bool)throws   {try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_encrypt_file(
         FfiConverterString.lower(inputPath),
         FfiConverterString.lower(outputPath),
@@ -845,7 +856,7 @@ public func encryptFile(inputPath: String, outputPath: String, recipients: [Reci
     )
 }
 }
-public func encryptFileWithPassphrase(inputPath: String, outputPath: String, passphrase: String, armor: Bool)throws  {try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func encryptFileWithPassphrase(inputPath: String, outputPath: String, passphrase: String, armor: Bool)throws   {try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_encrypt_file_with_passphrase(
         FfiConverterString.lower(inputPath),
         FfiConverterString.lower(outputPath),
@@ -854,35 +865,35 @@ public func encryptFileWithPassphrase(inputPath: String, outputPath: String, pas
     )
 }
 }
-public func generateIdentity()throws  -> Identity {
-    return try  FfiConverterTypeIdentity.lift(try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func generateIdentity()throws  -> Identity  {
+    return try  FfiConverterTypeIdentity_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_generate_identity($0
     )
 })
 }
-public func identityToRecipient(identity: Identity)throws  -> Recipient {
-    return try  FfiConverterTypeRecipient.lift(try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func identityToRecipient(identity: Identity)throws  -> Recipient  {
+    return try  FfiConverterTypeRecipient_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_identity_to_recipient(
-        FfiConverterTypeIdentity.lower(identity),$0
+        FfiConverterTypeIdentity_lower(identity),$0
     )
 })
 }
-public func parseFileMetadata(filePath: String)throws  -> FileMetadata {
-    return try  FfiConverterTypeFileMetadata.lift(try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func parseFileMetadata(filePath: String)throws  -> FileMetadata  {
+    return try  FfiConverterTypeFileMetadata_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_parse_file_metadata(
         FfiConverterString.lower(filePath),$0
     )
 })
 }
-public func parseIdentity(identityStr: String)throws  -> Identity {
-    return try  FfiConverterTypeIdentity.lift(try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func parseIdentity(identityStr: String)throws  -> Identity  {
+    return try  FfiConverterTypeIdentity_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_parse_identity(
         FfiConverterString.lower(identityStr),$0
     )
 })
 }
-public func parseRecipient(recipientStr: String)throws  -> Recipient {
-    return try  FfiConverterTypeRecipient.lift(try rustCallWithError(FfiConverterTypeRageError.lift) {
+public func parseRecipient(recipientStr: String)throws  -> Recipient  {
+    return try  FfiConverterTypeRecipient_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
     uniffi_swift_rage_ffi_fn_func_parse_recipient(
         FfiConverterString.lower(recipientStr),$0
     )
@@ -896,9 +907,9 @@ private enum InitializationResult {
 }
 // Use a global variable to perform the versioning checks. Swift ensures that
 // the code inside is only computed once.
-private nonisolated(unsafe) var initializationResult: InitializationResult = {
+private let initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
-    let bindings_contract_version = 26
+    let bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
     let scaffolding_contract_version = ffi_swift_rage_ffi_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
@@ -935,7 +946,9 @@ private nonisolated(unsafe) var initializationResult: InitializationResult = {
     return InitializationResult.ok
 }()
 
-private func uniffiEnsureInitialized() {
+// Make the ensure init function public so that other modules which have external type references to
+// our types can call it.
+public func uniffiEnsureSwiftRageFfiInitialized() {
     switch initializationResult {
     case .ok:
         break
