@@ -81,17 +81,17 @@ struct RustBuildPlugin: BuildToolPlugin {
         }
         
         // Try common cargo locations
+        let homeDirectory = FileManager.default.homeDirectoryForCurrentUser.path
         let possiblePaths = [
-            "~/.cargo/bin/cargo",
+            "\(homeDirectory)/.cargo/bin/cargo",
             "/usr/local/bin/cargo",
             "/usr/bin/cargo",
             "/opt/homebrew/bin/cargo"
         ]
         
         for path in possiblePaths {
-            let expandedPath = NSString(string: path).expandingTildeInPath
-            if FileManager.default.fileExists(atPath: expandedPath) {
-                return expandedPath
+            if FileManager.default.fileExists(atPath: path) {
+                return path
             }
         }
         
@@ -102,4 +102,3 @@ struct RustBuildPlugin: BuildToolPlugin {
 enum PluginError: Error {
     case cargoNotFound
 }
-

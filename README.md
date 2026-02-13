@@ -46,7 +46,7 @@ cd swift-rage
 swift build
 ```
 
-**Note:** The Package.swift includes a hardcoded library path for the CI environment. For local development, you may need to update the path in Package.swift line 37 to match your local directory structure, or set the `LIBRARY_PATH` environment variable.
+**Note:** The Package.swift includes a hardcoded library path for the CI environment. For local development, you may need to update the path in the SwiftRage target's linkerSettings to match your local directory structure, or set the `LIBRARY_PATH` environment variable.
 
 3. Run tests:
 ```bash
