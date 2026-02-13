@@ -46,3 +46,40 @@ jobs:
       
     - name: Run tests
       run: LD_LIBRARY_PATH=./target/release swift test
+
+  build-binary:
+    name: Build Binary Framework
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-apple-darwin,aarch64-apple-darwin,aarch64-apple-ios,x86_64-apple-ios,aarch64-apple-ios-sim
+        
+    - name: Cache Rust dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Build binaries for distribution
+      run: ./build-binary.sh
+      
+    - name: Upload binary framework
+      uses: actions/upload-artifact@v4
+      with:
+        name: SwiftRage-binaries
+        path: build/SwiftRage-binaries.zip
