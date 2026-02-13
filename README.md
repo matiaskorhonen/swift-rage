@@ -31,7 +31,11 @@ dependencies: [
 ]
 ```
 
-### Building
+### Binary Distribution
+
+For faster integration and to avoid requiring the Rust toolchain, pre-built binaries are available from GitHub Actions artifacts. See [BINARY_DISTRIBUTION.md](BINARY_DISTRIBUTION.md) for details.
+
+### Building from Source
 
 1. Clone the repository:
 ```bash
