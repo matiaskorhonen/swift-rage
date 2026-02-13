@@ -38,10 +38,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
           
-    - name: Build Rust library and generate bindings
-      run: ./build.sh
-      
-    - name: Build Swift package
+    - name: Build Swift package (automatically builds Rust and generates bindings)
       run: swift build
       
     - name: Run tests

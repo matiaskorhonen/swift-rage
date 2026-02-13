@@ -1,8 +1,13 @@
 #!/bin/bash
 set -e
 
-# Build script for SwiftRage
-# This script builds the Rust library and generates Swift bindings
+# Legacy build script for SwiftRage
+# 
+# This script is maintained for backward compatibility and manual builds.
+# For normal development, simply run `swift build` which will automatically
+# execute the RustBuildPlugin to build Rust and generate bindings.
+#
+# This script builds the Rust library and generates Swift bindings manually.
 
 echo "Building Rust library..."
 cargo build --release --manifest-path swift-rage-ffi/Cargo.toml
