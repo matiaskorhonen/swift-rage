@@ -1,4 +1,0 @@
-module swift_rageFFI {
-    header "swift_rageFFI.h"
-    export *
-}
