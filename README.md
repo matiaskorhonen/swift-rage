@@ -49,6 +49,8 @@ cd swift-rage
 swift build
 ```
 
+**Note:** The Package.swift includes a hardcoded library path for the CI environment. For local development, you may need to update the path in Package.swift line 33 to match your local directory structure, or set the `LIBRARY_PATH` environment variable.
+
 4. Run tests:
 ```bash
 LD_LIBRARY_PATH=./target/release swift test
