@@ -168,7 +168,9 @@ pub fn encrypt_file(
             .map_err(|e: age::EncryptError| RageError::EncryptionError(e.to_string()))?;
         
         std::io::copy(&mut input_reader, &mut writer)?;
-        writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
+        let armored_writer = writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
+        let buf_writer = armored_writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
+        buf_writer.into_inner().map_err(|e| RageError::IoError(e.to_string()))?;
     } else {
         let mut writer = encryptor
             .wrap_output(BufWriter::new(output_file))
@@ -208,7 +210,9 @@ pub fn encrypt_file_with_passphrase(
             .map_err(|e: age::EncryptError| RageError::EncryptionError(e.to_string()))?;
         
         std::io::copy(&mut input_reader, &mut writer)?;
-        writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
+        let armored_writer = writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
+        let buf_writer = armored_writer.finish().map_err(|e: std::io::Error| RageError::IoError(e.to_string()))?;
+        buf_writer.into_inner().map_err(|e| RageError::IoError(e.to_string()))?;
     } else {
         let mut writer = encryptor
             .wrap_output(BufWriter::new(output_file))
@@ -250,8 +254,11 @@ pub fn decrypt_file(
     
     let age_identities = age_identities?;
 
+    // Wrap in ArmoredReader to handle both armored and non-armored files
+    let armored_reader = age::armor::ArmoredReader::new(input_reader);
+
     // Create a decryptor
-    let decryptor = match age::Decryptor::new(input_reader)
+    let decryptor = match age::Decryptor::new(armored_reader)
         .map_err(|e: age::DecryptError| RageError::DecryptionError(e.to_string()))?
     {
         age::Decryptor::Recipients(d) => d,
@@ -288,8 +295,11 @@ pub fn decrypt_file_with_passphrase(
     let input_file = File::open(&input_path)?;
     let input_reader = BufReader::new(input_file);
 
+    // Wrap in ArmoredReader to handle both armored and non-armored files
+    let armored_reader = age::armor::ArmoredReader::new(input_reader);
+
     // Create a decryptor
-    let decryptor = match age::Decryptor::new(input_reader)
+    let decryptor = match age::Decryptor::new(armored_reader)
         .map_err(|e: age::DecryptError| RageError::DecryptionError(e.to_string()))?
     {
         age::Decryptor::Passphrase(d) => d,
