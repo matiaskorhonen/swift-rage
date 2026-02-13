@@ -1,1 +1,0 @@
-cargo:rustc-env=MIME_TYPES_GENERATED_PATH=/home/runner/work/swift-rage/swift-rage/target/release/build/mime_guess-c31dda6d38c2a77f/out/mime_types_generated.rs
