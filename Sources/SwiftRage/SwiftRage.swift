@@ -86,7 +86,7 @@ public enum SwiftRage {}
 /// ### Converting to Recipient
 /// - ``toRecipient()``
 public struct AgeIdentity {
-    private let identity: Identity
+    fileprivate let identity: Identity
     
     /// Generates a new random x25519 identity.
     ///
@@ -159,7 +159,7 @@ public struct AgeIdentity {
 /// ### Creating Recipients
 /// - ``parse(_:)``
 public struct AgeRecipient {
-    private let recipient: Recipient
+    fileprivate let recipient: Recipient
     
     /// Parses an x25519 recipient from a Bech32-encoded string.
     ///
@@ -243,6 +243,26 @@ public struct EncryptionOptions {
     }
 }
 
+// MARK: - Internal FFI Helpers
+
+fileprivate func callFFIEncryptFile(
+    inputPath: String,
+    outputPath: String,
+    recipients: [Recipient],
+    armor: Bool
+) throws {
+    try encryptFile(inputPath: inputPath, outputPath: outputPath, recipients: recipients, armor: armor)
+}
+
+fileprivate func callFFIDecryptFile(
+    inputPath: String,
+    identities: [Identity]
+) throws -> String {
+    try decryptFile(inputPath: inputPath, identities: identities)
+}
+
+// MARK: - Encryption
+
 /// High-level API for Age file encryption.
 ///
 /// ## Topics
@@ -283,7 +303,7 @@ public enum AgeEncryption {
         armor: Bool = false
     ) throws {
         let ffiRecipients = recipients.map { $0.recipient }
-        try swift_rage.encryptFile(
+        try callFFIEncryptFile(
             inputPath: inputPath,
             outputPath: outputPath,
             recipients: ffiRecipients,
@@ -373,7 +393,7 @@ public enum AgeDecryption {
         identities: [AgeIdentity]
     ) throws -> String {
         let ffiIdentities = identities.map { $0.identity }
-        return try swift_rage.decryptFile(
+        return try callFFIDecryptFile(
             inputPath: inputPath,
             identities: ffiIdentities
         )

@@ -16,13 +16,11 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-testing.git", from: "0.12.0"),
     ],
     targets: [
-        .target(
+        .systemLibrary(
             name: "SwiftRageFFI",
-            dependencies: [],
             path: "swift-rage-ffi",
-            exclude: ["src"],
-            sources: [],
-            publicHeadersPath: "."
+            pkgConfig: nil,
+            providers: nil
         ),
         .target(
             name: "SwiftRage",
@@ -30,6 +28,10 @@ let package = Package(
             path: "Sources/SwiftRage",
             swiftSettings: [
                 .unsafeFlags(["-enable-upcoming-feature", "ExistentialAny"])
+            ],
+            linkerSettings: [
+                .unsafeFlags(["-L", "/home/runner/work/swift-rage/swift-rage/target/release"], .when(platforms: [.linux, .macOS])),
+                .linkedLibrary("swift_rage_ffi", .when(platforms: [.linux, .macOS]))
             ]
         ),
         .testTarget(
