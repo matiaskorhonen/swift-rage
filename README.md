@@ -33,25 +33,22 @@ dependencies: [
 
 ### Building
 
+SwiftRage uses a Swift Package Manager Build Tool Plugin to automatically build the Rust FFI library and generate Swift bindings during the build process.
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/matiaskorhonen/swift-rage.git
 cd swift-rage
 ```
 
-2. Build the Rust library and generate Swift bindings:
-```bash
-./build.sh
-```
-
-3. Build the Swift package:
+2. Build the Swift package (this will automatically build Rust and generate bindings):
 ```bash
 swift build
 ```
 
-**Note:** The Package.swift includes a hardcoded library path for the CI environment. For local development, you may need to update the path in Package.swift line 33 to match your local directory structure, or set the `LIBRARY_PATH` environment variable.
+**Note:** The Package.swift includes a hardcoded library path for the CI environment. For local development, you may need to update the path in the SwiftRage target's linkerSettings to match your local directory structure, or set the `LIBRARY_PATH` environment variable.
 
-4. Run tests:
+3. Run tests:
 ```bash
 LD_LIBRARY_PATH=./target/release swift test
 ```
@@ -156,6 +153,15 @@ For more examples and detailed API documentation, see the [Quick Start Guide](ht
 ## Architecture
 
 SwiftRage uses [UniFFI](https://mozilla.github.io/uniffi-rs/) to generate Swift bindings for the Rust [age library](https://github.com/str4d/rage).
+
+### Build System
+
+The project uses a Swift Package Manager Build Tool Plugin that automatically:
+1. Builds the Rust FFI library (`swift-rage-ffi`) using Cargo
+2. Generates Swift bindings from the UniFFI definition (`swift_rage.udl`)
+3. Integrates the generated code into the Swift build process
+
+This ensures that `swift build` automatically handles all Rust compilation and binding generation, eliminating the need for manual build steps in most cases.
 
 ## Testing
 

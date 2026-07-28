@@ -1,11 +1,39 @@
 use camino::Utf8PathBuf;
 use std::env;
+use std::path::PathBuf;
 use uniffi_bindgen::bindings::{GenerateOptions, TargetLanguage};
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    
     let crate_dir = env::current_dir().unwrap();
-    let udl_file = crate_dir.join("swift-rage-ffi/src/swift_rage.udl");
-    let out_dir = crate_dir.join("generated");
+    
+    // Parse command line arguments or use defaults
+    let (udl_file, out_dir) = if args.len() >= 3 {
+        // Arguments: <udl_path> <output_dir>
+        let udl = PathBuf::from(&args[1]);
+        let out = PathBuf::from(&args[2]);
+        
+        // Validate UDL file exists
+        if !udl.exists() {
+            eprintln!("Error: UDL file not found: {}", udl.display());
+            eprintln!("Expected a .udl file at the specified path.");
+            std::process::exit(1);
+        }
+        
+        if !udl.is_file() {
+            eprintln!("Error: UDL path is not a file: {}", udl.display());
+            std::process::exit(1);
+        }
+        
+        (udl, out)
+    } else {
+        // Default behavior for backward compatibility
+        (
+            crate_dir.join("swift-rage-ffi/src/swift_rage.udl"),
+            crate_dir.join("generated")
+        )
+    };
     
     // Ensure output directory exists
     std::fs::create_dir_all(&out_dir).expect("Failed to create output directory");
