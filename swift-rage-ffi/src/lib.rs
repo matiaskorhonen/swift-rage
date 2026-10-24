@@ -450,8 +450,10 @@ pub fn encrypt_file(
         .map(|r| parse_any_recipient(&r.key_data))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let encryptor = age::Encryptor::with_recipients(age_recipients)
-        .ok_or_else(|| RageError::EncryptionFailed("At least one recipient required".to_string()))?;
+    let encryptor = age::Encryptor::with_recipients(
+        age_recipients.iter().map(|r| r.as_ref() as &dyn age::Recipient),
+    )
+    .map_err(|e| RageError::EncryptionFailed(e.to_string()))?;
 
     encrypt_to_path(encryptor, &input_path, &output_path, armor)
 }
@@ -463,7 +465,7 @@ pub fn encrypt_file_with_passphrase(
     passphrase: String,
     armor: bool,
 ) -> Result<(), RageError> {
-    let encryptor = age::Encryptor::with_user_passphrase(secrecy::Secret::new(passphrase));
+    let encryptor = age::Encryptor::with_user_passphrase(secrecy::SecretString::from(passphrase));
     encrypt_to_path(encryptor, &input_path, &output_path, armor)
 }
 
@@ -485,6 +487,7 @@ fn decrypt_error(err: DecryptError, on_failure: fn(String) -> RageError) -> Rage
         }
         DecryptError::KeyDecryptionFailed => RageError::InvalidKey(err.to_string()),
         DecryptError::Io(e) => read_error(e),
+        other => RageError::MalformedInput(other.to_string()),
     }
 }
 
@@ -552,17 +555,15 @@ pub fn decrypt_file(
         .map(|i| parse_any_identity(&i.key_data))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let decryptor = match open_decryptor(&input_path)? {
-        age::Decryptor::Recipients(d) => d,
-        age::Decryptor::Passphrase(_) => {
-            return Err(RageError::EncryptedWithPassphrase(
-                "The file was encrypted with a passphrase, not to recipients".to_string(),
-            ))
-        }
-    };
+    let decryptor = open_decryptor(&input_path)?;
+    if decryptor.is_scrypt() {
+        return Err(RageError::EncryptedWithPassphrase(
+            "The file was encrypted with a passphrase, not to recipients".to_string(),
+        ));
+    }
 
     let reader = decryptor
-        .decrypt(age_identities.iter().map(|i| i.as_ref()))
+        .decrypt(age_identities.iter().map(|i| i.as_ref() as &dyn age::Identity))
         .map_err(|e| decrypt_error(e, RageError::NoMatchingIdentity))?;
 
     decrypt_to_path(reader, &input_path, output_directory)
@@ -576,17 +577,20 @@ pub fn decrypt_file_with_passphrase(
     max_work_factor: Option<u8>,
     output_directory: Option<String>,
 ) -> Result<String, RageError> {
-    let decryptor = match open_decryptor(&input_path)? {
-        age::Decryptor::Passphrase(d) => d,
-        age::Decryptor::Recipients(_) => {
-            return Err(RageError::EncryptedToRecipients(
-                "The file was encrypted to recipients, not with a passphrase".to_string(),
-            ))
-        }
-    };
+    let decryptor = open_decryptor(&input_path)?;
+    if !decryptor.is_scrypt() {
+        return Err(RageError::EncryptedToRecipients(
+            "The file was encrypted to recipients, not with a passphrase".to_string(),
+        ));
+    }
+
+    let mut identity = age::scrypt::Identity::new(secrecy::SecretString::from(passphrase));
+    if let Some(max_work_factor) = max_work_factor {
+        identity.set_max_work_factor(max_work_factor);
+    }
 
     let reader = decryptor
-        .decrypt(&secrecy::Secret::new(passphrase), max_work_factor)
+        .decrypt(std::iter::once(&identity as &dyn age::Identity))
         .map_err(|e| decrypt_error(e, RageError::WrongPassphrase))?;
 
     decrypt_to_path(reader, &input_path, output_directory)

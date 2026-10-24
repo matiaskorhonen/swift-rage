@@ -39,6 +39,52 @@ fileprivate extension ForeignBytes {
     init(bufferPointer: UnsafeBufferPointer<UInt8>) {
         self.init(len: Int32(bufferPointer.count), data: bufferPointer.baseAddress)
     }
+
+    init(rawBufferPointer: UnsafeRawBufferPointer) {
+        self.init(
+            len: Int32(rawBufferPointer.count),
+            data: rawBufferPointer.baseAddress?.assumingMemoryBound(to: UInt8.self)
+        )
+    }
+}
+
+// Converter for `&[u8]` / `[ByRef] bytes` arguments.
+//
+// Conforms to `FfiConverter` so the compiler enforces the full converter
+// method set. Only the scope-bound `lower(_:_body:)` overload is sound —
+// zero-copy byte buffers only flow foreign -> Rust, and only in argument
+// position. The four protocol-witness methods (`lift`, `lower`, `read`,
+// `write`) `fatalError` at runtime if anyone reaches them.
+//
+// The scope-bound `lower` takes a closure because the `ForeignBytes`
+// pointer is only guaranteed valid for the duration of
+// `Data.withUnsafeBytes`. Callers must run the full FFI call inside
+// the closure body.
+fileprivate enum FfiConverterByRefBytes: FfiConverter {
+    typealias SwiftType = Data
+    typealias FfiType = ForeignBytes
+
+    static func lower<R>(_ value: Data, _ body: (ForeignBytes) throws -> R) rethrows -> R {
+        return try value.withUnsafeBytes { rawBuf in
+            try body(ForeignBytes(rawBufferPointer: rawBuf))
+        }
+    }
+
+    static func lower(_ value: Data) -> ForeignBytes {
+        fatalError("ByRef bytes cannot use the plain lower: returning ForeignBytes escapes the Data.withUnsafeBytes scope. Use the scope-bound lower(_:_body:) overload instead.")
+    }
+
+    static func lift(_ value: ForeignBytes) throws -> Data {
+        fatalError("ByRef bytes cannot be lifted: zero-copy &[u8] only flows foreign->Rust")
+    }
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        fatalError("ByRef bytes cannot be read from a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+    }
+
+    static func write(_ value: Data, into buf: inout [UInt8]) {
+        fatalError("ByRef bytes cannot be written to a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+    }
 }
 
 // For every type used in the interface, we provide helper methods for conveniently
@@ -471,7 +517,11 @@ fileprivate struct FfiConverterString: FfiConverter {
             return String()
         }
         let bytes = UnsafeBufferPointer<UInt8>(start: value.data!, count: Int(value.len))
-        return String(bytes: bytes, encoding: String.Encoding.utf8)!
+        // Use Swift's native UTF-8 decoder; `String(bytes:encoding:.utf8)` goes
+        // through Foundation's NSString and silently strips a leading U+FEFF BOM.
+        // Invalid UTF-8 substitutes U+FFFD instead of trapping (unreachable
+        // given Rust's `String` invariant).
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     public static func lower(_ value: String) -> RustBuffer {
@@ -487,7 +537,8 @@ fileprivate struct FfiConverterString: FfiConverter {
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
+        // See `lift` above for why we avoid Foundation's NSString-backed decoder here.
+        return String(decoding: try readBytes(&buf, count: Int(len)), as: UTF8.self)
     }
 
     public static func write(_ value: String, into buf: inout [UInt8]) {
@@ -772,7 +823,8 @@ internal func FfiConverterTypeSshIdentity_lower(_ value: SshIdentity) -> RustBuf
 }
 
 
-internal enum RageError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+internal 
+enum RageError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
@@ -1073,87 +1125,98 @@ fileprivate struct FfiConverterSequenceTypeRecipient: FfiConverterRustBuffer {
 }
 internal func decryptFile(inputPath: String, identities: [Identity], outputDirectory: String?)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_decrypt_file(
         FfiConverterString.lower(inputPath),
         FfiConverterSequenceTypeIdentity.lower(identities),
-        FfiConverterOptionString.lower(outputDirectory),$0
+        FfiConverterOptionString.lower(outputDirectory),uniffiCallStatus
     )
 })
 }
 internal func decryptFileWithPassphrase(inputPath: String, passphrase: String, maxWorkFactor: UInt8?, outputDirectory: String?)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_decrypt_file_with_passphrase(
         FfiConverterString.lower(inputPath),
         FfiConverterString.lower(passphrase),
         FfiConverterOptionUInt8.lower(maxWorkFactor),
-        FfiConverterOptionString.lower(outputDirectory),$0
+        FfiConverterOptionString.lower(outputDirectory),uniffiCallStatus
     )
 })
 }
 internal func encryptFile(inputPath: String, outputPath: String, recipients: [Recipient], armor: Bool)throws   {try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_encrypt_file(
         FfiConverterString.lower(inputPath),
         FfiConverterString.lower(outputPath),
         FfiConverterSequenceTypeRecipient.lower(recipients),
-        FfiConverterBool.lower(armor),$0
+        FfiConverterBool.lower(armor),uniffiCallStatus
     )
 }
 }
 internal func encryptFileWithPassphrase(inputPath: String, outputPath: String, passphrase: String, armor: Bool)throws   {try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_encrypt_file_with_passphrase(
         FfiConverterString.lower(inputPath),
         FfiConverterString.lower(outputPath),
         FfiConverterString.lower(passphrase),
-        FfiConverterBool.lower(armor),$0
+        FfiConverterBool.lower(armor),uniffiCallStatus
     )
 }
 }
 internal func generateIdentity()throws  -> Identity  {
     return try  FfiConverterTypeIdentity_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
-    uniffi_swift_rage_ffi_fn_func_generate_identity($0
+        uniffiCallStatus in
+    uniffi_swift_rage_ffi_fn_func_generate_identity(uniffiCallStatus
     )
 })
 }
 internal func identityInfo(identity: Identity)throws  -> IdentityInfo  {
     return try  FfiConverterTypeIdentityInfo_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_identity_info(
-        FfiConverterTypeIdentity_lower(identity),$0
+        FfiConverterTypeIdentity_lower(identity),uniffiCallStatus
     )
 })
 }
 internal func identityToRecipient(identity: Identity)throws  -> Recipient  {
     return try  FfiConverterTypeRecipient_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_identity_to_recipient(
-        FfiConverterTypeIdentity_lower(identity),$0
+        FfiConverterTypeIdentity_lower(identity),uniffiCallStatus
     )
 })
 }
 internal func parseFileMetadata(filePath: String)throws  -> FileMetadata  {
     return try  FfiConverterTypeFileMetadata_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_parse_file_metadata(
-        FfiConverterString.lower(filePath),$0
+        FfiConverterString.lower(filePath),uniffiCallStatus
     )
 })
 }
 internal func parseIdentity(identityStr: String)throws  -> Identity  {
     return try  FfiConverterTypeIdentity_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_parse_identity(
-        FfiConverterString.lower(identityStr),$0
+        FfiConverterString.lower(identityStr),uniffiCallStatus
     )
 })
 }
 internal func parseRecipient(recipientStr: String)throws  -> Recipient  {
     return try  FfiConverterTypeRecipient_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_parse_recipient(
-        FfiConverterString.lower(recipientStr),$0
+        FfiConverterString.lower(recipientStr),uniffiCallStatus
     )
 })
 }
 internal func parseSshIdentity(privateKey: String, passphrase: String?)throws  -> SshIdentity  {
     return try  FfiConverterTypeSshIdentity_lift(try rustCallWithError(FfiConverterTypeRageError_lift) {
+        uniffiCallStatus in
     uniffi_swift_rage_ffi_fn_func_parse_ssh_identity(
         FfiConverterString.lower(privateKey),
-        FfiConverterOptionString.lower(passphrase),$0
+        FfiConverterOptionString.lower(passphrase),uniffiCallStatus
     )
 })
 }
@@ -1173,13 +1236,13 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_swift_rage_ffi_checksum_func_decrypt_file() != 9372) {
+    if (uniffi_swift_rage_ffi_checksum_func_decrypt_file() != 38578) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_swift_rage_ffi_checksum_func_decrypt_file_with_passphrase() != 34410) {
+    if (uniffi_swift_rage_ffi_checksum_func_decrypt_file_with_passphrase() != 47862) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_swift_rage_ffi_checksum_func_encrypt_file() != 116) {
+    if (uniffi_swift_rage_ffi_checksum_func_encrypt_file() != 43963) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_swift_rage_ffi_checksum_func_encrypt_file_with_passphrase() != 13844) {
@@ -1203,7 +1266,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_swift_rage_ffi_checksum_func_parse_recipient() != 29134) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_swift_rage_ffi_checksum_func_parse_ssh_identity() != 7221) {
+    if (uniffi_swift_rage_ffi_checksum_func_parse_ssh_identity() != 25211) {
         return InitializationResult.apiChecksumMismatch
     }
 
