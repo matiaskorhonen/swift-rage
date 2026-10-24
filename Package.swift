@@ -1,51 +1,49 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
+
+// The Rust FFI library ships as a prebuilt XCFramework, built by
+// scripts/build-xcframework.sh and attached to each GitHub release.
+// The release workflow updates these and checks the checksum.
+let ffiReleaseURL = "https://github.com/matiaskorhonen/swift-rage/releases/download/0.1.0/SwiftRageFFI.xcframework.zip"
+let ffiReleaseChecksum = "aae19e9bd1a21afe5888642ab0958bc4be52773c8b852df8cdc7e9bff2b63ede"
+
+// Set SWIFT_RAGE_LOCAL_FFI=1 to use the XCFramework that scripts/build-xcframework.sh
+// builds in build/, e.g. after changing the Rust code.
+let ffiTarget: Target = if Context.environment["SWIFT_RAGE_LOCAL_FFI"] != nil {
+    .binaryTarget(name: "SwiftRageFFI", path: "build/SwiftRageFFI.xcframework")
+} else {
+    .binaryTarget(name: "SwiftRageFFI", url: ffiReleaseURL, checksum: ffiReleaseChecksum)
+}
 
 let package = Package(
     name: "SwiftRage",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
+        .macOS(.v26),
+        .iOS(.v26),
     ],
     products: [
         .library(
             name: "SwiftRage",
             targets: ["SwiftRage"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-testing.git", from: "0.12.0"),
-    ],
     targets: [
-        .plugin(
-            name: "RustBuildPlugin",
-            capability: .buildTool()
-        ),
-        .systemLibrary(
-            name: "SwiftRageFFI",
-            path: "swift-rage-ffi",
-            pkgConfig: nil,
-            providers: nil
-        ),
+        ffiTarget,
         .target(
             name: "SwiftRage",
             dependencies: ["SwiftRageFFI"],
             path: "Sources/SwiftRage",
             swiftSettings: [
-                .unsafeFlags(["-enable-upcoming-feature", "ExistentialAny"])
-            ],
-            linkerSettings: [
-                .unsafeFlags(["-L", "/home/runner/work/swift-rage/swift-rage/target/release"], .when(platforms: [.linux, .macOS])),
-                .linkedLibrary("swift_rage_ffi", .when(platforms: [.linux, .macOS]))
-            ],
-            plugins: ["RustBuildPlugin"]
+                .enableUpcomingFeature("ExistentialAny"),
+            ]
         ),
         .testTarget(
             name: "SwiftRageTests",
-            dependencies: [
-                "SwiftRage",
-                .product(name: "Testing", package: "swift-testing")
-            ],
-            path: "Tests/SwiftRageTests"
+            dependencies: ["SwiftRage"],
+            path: "Tests/SwiftRageTests",
+            resources: [.copy("Fixtures")],
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny"),
+            ]
         ),
     ]
 )

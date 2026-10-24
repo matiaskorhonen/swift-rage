@@ -1,6 +1,5 @@
 # Rust
 target/
-Cargo.lock
 
 # Swift
 .build/
@@ -9,8 +8,10 @@ Cargo.lock
 *.xcworkspace
 
 # Generated files
-generated/
-Sources/SwiftRage/swift_rage.swift
+/generated/
+
+# XCFramework build output
+build/
 
 # macOS
 .DS_Store
