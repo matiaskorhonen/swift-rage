@@ -33,6 +33,7 @@ struct RustBuildPlugin: BuildToolPlugin {
             "swift-rage-ffi/src/swift_rage.udl",
             "bindings-gen/Cargo.toml",
             "bindings-gen/src/main.rs",
+            "swift-rage-ffi/swift_rageFFI.h",
         ].map { packageDirectory.appending(path: $0) }
 
         // Create a build script
@@ -69,6 +70,16 @@ struct RustBuildPlugin: BuildToolPlugin {
             run_cargo run --release --locked --manifest-path "\(packageDirectory.path)/bindings-gen/Cargo.toml" -- \\
                 "\(udlFile.path)" \\
                 "\(outputDirectory.path)"
+
+            # Keep the generated FFI layer out of SwiftRage's public API
+            sed -E 's/^public /internal /' "\(generatedSwiftFile.path)" > "\(generatedSwiftFile.path).tmp"
+            mv "\(generatedSwiftFile.path).tmp" "\(generatedSwiftFile.path)"
+
+            # The SwiftRageFFI system library uses the checked-in copy of the header
+            if ! cmp -s "\(outputDirectory.path)/swift_rageFFI.h" "\(packageDirectory.path)/swift-rage-ffi/swift_rageFFI.h"; then
+                echo "error: swift-rage-ffi/swift_rageFFI.h is out of date. Replace it with \(outputDirectory.path)/swift_rageFFI.h" >&2
+                exit 1
+            fi
 
             echo "Rust build complete!"
             """

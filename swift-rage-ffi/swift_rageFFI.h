@@ -245,12 +245,12 @@ typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureRes
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_DECRYPT_FILE
 #define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_DECRYPT_FILE
-RustBuffer uniffi_swift_rage_ffi_fn_func_decrypt_file(RustBuffer input_path, RustBuffer identities, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_swift_rage_ffi_fn_func_decrypt_file(RustBuffer input_path, RustBuffer identities, RustBuffer output_directory, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_DECRYPT_FILE_WITH_PASSPHRASE
 #define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_DECRYPT_FILE_WITH_PASSPHRASE
-RustBuffer uniffi_swift_rage_ffi_fn_func_decrypt_file_with_passphrase(RustBuffer input_path, RustBuffer passphrase, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_swift_rage_ffi_fn_func_decrypt_file_with_passphrase(RustBuffer input_path, RustBuffer passphrase, RustBuffer max_work_factor, RustBuffer output_directory, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_ENCRYPT_FILE
@@ -267,6 +267,11 @@ void uniffi_swift_rage_ffi_fn_func_encrypt_file_with_passphrase(RustBuffer input
 #define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_GENERATE_IDENTITY
 RustBuffer uniffi_swift_rage_ffi_fn_func_generate_identity(RustCallStatus *_Nonnull out_status
     
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_IDENTITY_INFO
+#define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_IDENTITY_INFO
+RustBuffer uniffi_swift_rage_ffi_fn_func_identity_info(RustBuffer identity, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_IDENTITY_TO_RECIPIENT
@@ -287,6 +292,11 @@ RustBuffer uniffi_swift_rage_ffi_fn_func_parse_identity(RustBuffer identity_str,
 #ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_PARSE_RECIPIENT
 #define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_PARSE_RECIPIENT
 RustBuffer uniffi_swift_rage_ffi_fn_func_parse_recipient(RustBuffer recipient_str, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_PARSE_SSH_IDENTITY
+#define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_FN_FUNC_PARSE_SSH_IDENTITY
+RustBuffer uniffi_swift_rage_ffi_fn_func_parse_ssh_identity(RustBuffer private_key, RustBuffer passphrase, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_SWIFT_RAGE_FFI_RUSTBUFFER_ALLOC
@@ -579,6 +589,12 @@ uint16_t uniffi_swift_rage_ffi_checksum_func_generate_identity(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_IDENTITY_INFO
+#define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_IDENTITY_INFO
+uint16_t uniffi_swift_rage_ffi_checksum_func_identity_info(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_IDENTITY_TO_RECIPIENT
 #define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_IDENTITY_TO_RECIPIENT
 uint16_t uniffi_swift_rage_ffi_checksum_func_identity_to_recipient(void
@@ -600,6 +616,12 @@ uint16_t uniffi_swift_rage_ffi_checksum_func_parse_identity(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_PARSE_RECIPIENT
 #define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_PARSE_RECIPIENT
 uint16_t uniffi_swift_rage_ffi_checksum_func_parse_recipient(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_PARSE_SSH_IDENTITY
+#define UNIFFI_FFIDEF_UNIFFI_SWIFT_RAGE_FFI_CHECKSUM_FUNC_PARSE_SSH_IDENTITY
+uint16_t uniffi_swift_rage_ffi_checksum_func_parse_ssh_identity(void
     
 );
 #endif

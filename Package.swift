@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import Foundation
 import PackageDescription
 
@@ -13,16 +13,13 @@ let rustLibraryDirectory = Context.environment["SWIFT_RAGE_LIB_DIR"]
 let package = Package(
     name: "SwiftRage",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
+        .macOS(.v26),
+        .iOS(.v26),
     ],
     products: [
         .library(
             name: "SwiftRage",
             targets: ["SwiftRage"]),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-testing.git", from: "0.12.0"),
     ],
     targets: [
         .plugin(
@@ -40,7 +37,7 @@ let package = Package(
             dependencies: ["SwiftRageFFI"],
             path: "Sources/SwiftRage",
             swiftSettings: [
-                .unsafeFlags(["-enable-upcoming-feature", "ExistentialAny"])
+                .enableUpcomingFeature("ExistentialAny"),
             ],
             linkerSettings: [
                 .unsafeFlags(["-L", rustLibraryDirectory]),
@@ -50,11 +47,12 @@ let package = Package(
         ),
         .testTarget(
             name: "SwiftRageTests",
-            dependencies: [
-                "SwiftRage",
-                .product(name: "Testing", package: "swift-testing")
-            ],
-            path: "Tests/SwiftRageTests"
+            dependencies: ["SwiftRage"],
+            path: "Tests/SwiftRageTests",
+            resources: [.copy("Fixtures")],
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny"),
+            ]
         ),
     ]
 )

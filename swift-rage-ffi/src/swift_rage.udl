@@ -1,12 +1,19 @@
 [Error]
 enum RageError {
-  "IoError",
-  "DecryptionError",
-  "EncryptionError",
+  "Io",
+  "WrongPassphrase",
+  "NoMatchingIdentity",
+  "EncryptedWithPassphrase",
+  "EncryptedToRecipients",
   "InvalidKey",
+  "MalformedInput",
+  "ExcessiveWorkFactor",
   "InvalidRecipient",
-  "ParseError",
-  "Utf8Error",
+  "EncryptionFailed",
+  "SshPassphraseRequired",
+  "SshWrongPassphrase",
+  "SshUnsupportedAlgorithm",
+  "SshKeyTooLarge",
 };
 
 dictionary Identity {
@@ -17,9 +24,22 @@ dictionary Recipient {
   string key_data;
 };
 
+dictionary IdentityInfo {
+  string recipient;
+  string key_type;
+};
+
+dictionary SshIdentity {
+  string private_key;
+  string public_key;
+  string fingerprint;
+  string algorithm;
+};
+
 dictionary FileMetadata {
-  sequence<string> recipients;
   boolean is_armored;
+  sequence<string> stanza_types;
+  u8? scrypt_work_factor;
 };
 
 namespace swift_rage {
@@ -31,6 +51,12 @@ namespace swift_rage {
 
   [Throws=RageError]
   Recipient identity_to_recipient(Identity identity);
+
+  [Throws=RageError]
+  IdentityInfo identity_info(Identity identity);
+
+  [Throws=RageError]
+  SshIdentity parse_ssh_identity(string private_key, string? passphrase);
 
   [Throws=RageError]
   Recipient parse_recipient(string recipient_str);
@@ -45,8 +71,8 @@ namespace swift_rage {
   void encrypt_file_with_passphrase(string input_path, string output_path, string passphrase, boolean armor);
 
   [Throws=RageError]
-  string decrypt_file(string input_path, sequence<Identity> identities);
+  string decrypt_file(string input_path, sequence<Identity> identities, string? output_directory);
 
   [Throws=RageError]
-  string decrypt_file_with_passphrase(string input_path, string passphrase);
+  string decrypt_file_with_passphrase(string input_path, string passphrase, u8? max_work_factor, string? output_directory);
 };
