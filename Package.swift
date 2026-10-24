@@ -1,5 +1,14 @@
 // swift-tools-version: 6.0
+import Foundation
 import PackageDescription
+
+// RustBuildPlugin builds the Rust static library into its plugin work directory.
+// SwiftPM gives plugins no way to pass libraries to the linker, so point the
+// linker at that directory here. Set SWIFT_RAGE_LIB_DIR to override it, e.g.
+// when building with a custom --scratch-path.
+let packageIdentity = URL(fileURLWithPath: Context.packageDirectory).lastPathComponent.lowercased()
+let rustLibraryDirectory = Context.environment["SWIFT_RAGE_LIB_DIR"]
+    ?? "\(Context.packageDirectory)/.build/plugins/outputs/\(packageIdentity)/SwiftRage/destination/RustBuildPlugin/cargo/release"
 
 let package = Package(
     name: "SwiftRage",
@@ -34,8 +43,8 @@ let package = Package(
                 .unsafeFlags(["-enable-upcoming-feature", "ExistentialAny"])
             ],
             linkerSettings: [
-                .unsafeFlags(["-L", "/home/runner/work/swift-rage/swift-rage/target/release"], .when(platforms: [.linux, .macOS])),
-                .linkedLibrary("swift_rage_ffi", .when(platforms: [.linux, .macOS]))
+                .unsafeFlags(["-L", rustLibraryDirectory]),
+                .linkedLibrary("swift_rage_ffi"),
             ],
             plugins: ["RustBuildPlugin"]
         ),

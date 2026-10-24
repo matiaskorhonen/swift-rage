@@ -33,13 +33,15 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-
           
+    - name: Fetch Rust dependencies
+      run: cargo fetch --locked
+
     - name: Build Swift package (automatically builds Rust and generates bindings)
       run: swift build
-      
+
     - name: Run tests
-      run: LD_LIBRARY_PATH=./target/release swift test
+      run: swift test

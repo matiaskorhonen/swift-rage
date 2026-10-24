@@ -4,32 +4,25 @@ A Swift 6 wrapper for the Rust implementation of [Age](https://github.com/str4d/
 
 ## Features
 
-- ✅ **x25519 key-based encryption** with support for multiple recipients
-- ✅ **Passphrase-based encryption** for simple password-protected files
-- ✅ **ASCII armor format** for safe transmission in text-only channels
-- ✅ **Binary format** for efficient storage
-- ✅ **Streaming encryption/decryption** for efficient processing of large files
-- ✅ **Swift 6** compatibility with full concurrency support
-- ✅ **Comprehensive documentation** with Swift-DocC
-- ✅ **Extensive test coverage** using swift-testing
+- **x25519 key-based encryption** with support for multiple recipients
+- **Passphrase-based encryption** for simple password-protected files
+- **ASCII armor format** for safe transmission in text-only channels
+- **Binary format** for efficient storage
+- **Streamed file processing** in Rust, so large files are never loaded into memory
+- **Swift 6** compatibility with full concurrency support
+- **Comprehensive documentation** with Swift-DocC
+- **Test suite** using Swift Testing
 
 ## Requirements
 
 - Swift 6.0+
-- Rust 1.70+ (for building)
+- Rust (stable, installed with [rustup](https://rustup.rs)) and `cargo` on your `PATH`
 - macOS 13+ or Linux
 
 ## Installation
 
-### Swift Package Manager
-
-Add SwiftRage to your `Package.swift`:
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/matiaskorhonen/swift-rage.git", from: "0.1.0")
-]
-```
+> [!WARNING]
+> SwiftRage can currently only be built from a checkout of this repository. It does not yet work as a dependency of another package. The Rust library is linked with an unsafe linker flag, which SwiftPM does not allow for versioned dependencies, and the flag's path only matches when this package is the root package. There is no tagged release yet. Distributing a prebuilt binary target would fix both problems.
 
 ### Building
 
@@ -41,17 +34,26 @@ git clone https://github.com/matiaskorhonen/swift-rage.git
 cd swift-rage
 ```
 
-2. Build the Swift package (this will automatically build Rust and generate bindings):
+2. Download the Rust dependencies (needed once, and again after the Rust dependencies change):
+```bash
+cargo fetch
+```
+
+The SwiftPM sandbox blocks network access during builds, so the build plugin can only use crates that are already in the cargo cache.
+
+3. Build the Swift package (this will automatically build Rust and generate bindings):
 ```bash
 swift build
 ```
 
-**Note:** The Package.swift includes a hardcoded library path for the CI environment. For local development, you may need to update the path in the SwiftRage target's linkerSettings to match your local directory structure, or set the `LIBRARY_PATH` environment variable.
-
-3. Run tests:
+4. Run tests:
 ```bash
-LD_LIBRARY_PATH=./target/release swift test
+swift test
 ```
+
+The first build compiles the Rust crates and takes a minute or two; later builds reuse them.
+
+If you build with a custom `--scratch-path`, set `SWIFT_RAGE_LIB_DIR` to `<scratch-path>/plugins/outputs/<package-directory-name>/SwiftRage/destination/RustBuildPlugin/cargo/release` so the linker can find the Rust library.
 
 ## Quick Start
 
@@ -148,28 +150,26 @@ let decryptedPath = try AgeDecryption.decryptFile(
 )
 ```
 
-For more examples and detailed API documentation, see the [Quick Start Guide](https://github.com/matiaskorhonen/swift-rage/wiki/Quick-Start).
-
 ## Architecture
 
 SwiftRage uses [UniFFI](https://mozilla.github.io/uniffi-rs/) to generate Swift bindings for the Rust [age library](https://github.com/str4d/rage).
 
 ### Build System
 
-The project uses a Swift Package Manager Build Tool Plugin that automatically:
-1. Builds the Rust FFI library (`swift-rage-ffi`) using Cargo
+The project uses a Swift Package Manager Build Tool Plugin (`Plugins/RustBuildPlugin`) that automatically:
+1. Builds the Rust FFI library (`swift-rage-ffi`) as a static library using Cargo
 2. Generates Swift bindings from the UniFFI definition (`swift_rage.udl`)
 3. Integrates the generated code into the Swift build process
 
-This ensures that `swift build` automatically handles all Rust compilation and binding generation, eliminating the need for manual build steps in most cases.
+All of the plugin's output, including Cargo's target directory, goes into the plugin work directory under `.build/plugins/outputs/`, which is the only place a build tool plugin may write to under the SwiftPM sandbox. `Package.swift` adds that directory to the linker search path, because plugins cannot pass libraries to the linker themselves.
+
+The plugin runs Cargo with a minimal environment (`PATH`, `HOME` and any `CARGO_HOME`, `RUSTUP_HOME` or `RUSTUP_TOOLCHAIN`). SwiftPM exports its build settings to plugin commands, and `MACOSX_DEPLOYMENT_TARGET` in particular stops rustc from loading proc-macro crates on macOS.
 
 ## Testing
 
-All 17 tests passing (100% coverage)
-
-Run tests with:
+Run the tests with:
 ```bash
-LD_LIBRARY_PATH=./target/release swift test
+swift test
 ```
 
 ## License
