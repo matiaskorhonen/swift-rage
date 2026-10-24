@@ -1,14 +1,19 @@
 // swift-tools-version: 6.2
-import Foundation
 import PackageDescription
 
-// RustBuildPlugin builds the Rust static library into its plugin work directory.
-// SwiftPM gives plugins no way to pass libraries to the linker, so point the
-// linker at that directory here. Set SWIFT_RAGE_LIB_DIR to override it, e.g.
-// when building with a custom --scratch-path.
-let packageIdentity = URL(fileURLWithPath: Context.packageDirectory).lastPathComponent.lowercased()
-let rustLibraryDirectory = Context.environment["SWIFT_RAGE_LIB_DIR"]
-    ?? "\(Context.packageDirectory)/.build/plugins/outputs/\(packageIdentity)/SwiftRage/destination/RustBuildPlugin/cargo/release"
+// The Rust FFI library ships as a prebuilt XCFramework, built by
+// scripts/build-xcframework.sh and attached to each GitHub release.
+// The release workflow updates these and checks the checksum.
+let ffiReleaseURL = "https://github.com/matiaskorhonen/swift-rage/releases/download/0.1.0/SwiftRageFFI.xcframework.zip"
+let ffiReleaseChecksum = "aae19e9bd1a21afe5888642ab0958bc4be52773c8b852df8cdc7e9bff2b63ede"
+
+// Set SWIFT_RAGE_LOCAL_FFI=1 to use the XCFramework that scripts/build-xcframework.sh
+// builds in build/, e.g. after changing the Rust code.
+let ffiTarget: Target = if Context.environment["SWIFT_RAGE_LOCAL_FFI"] != nil {
+    .binaryTarget(name: "SwiftRageFFI", path: "build/SwiftRageFFI.xcframework")
+} else {
+    .binaryTarget(name: "SwiftRageFFI", url: ffiReleaseURL, checksum: ffiReleaseChecksum)
+}
 
 let package = Package(
     name: "SwiftRage",
@@ -22,28 +27,14 @@ let package = Package(
             targets: ["SwiftRage"]),
     ],
     targets: [
-        .plugin(
-            name: "RustBuildPlugin",
-            capability: .buildTool()
-        ),
-        .systemLibrary(
-            name: "SwiftRageFFI",
-            path: "swift-rage-ffi",
-            pkgConfig: nil,
-            providers: nil
-        ),
+        ffiTarget,
         .target(
             name: "SwiftRage",
             dependencies: ["SwiftRageFFI"],
             path: "Sources/SwiftRage",
             swiftSettings: [
                 .enableUpcomingFeature("ExistentialAny"),
-            ],
-            linkerSettings: [
-                .unsafeFlags(["-L", rustLibraryDirectory]),
-                .linkedLibrary("swift_rage_ffi"),
-            ],
-            plugins: ["RustBuildPlugin"]
+            ]
         ),
         .testTarget(
             name: "SwiftRageTests",

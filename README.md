@@ -18,62 +18,29 @@ A Swift 6 wrapper for the Rust implementation of [Age](https://github.com/str4d/
 ## Requirements
 
 - Swift 6.2+
-- macOS 26+ or iOS 26+ (Linux is supported for building and testing)
-- Rust (stable, installed with [rustup](https://rustup.rs)) and `cargo` on your `PATH`
+- macOS 26+ or iOS 26+
+
+The Rust library ships as a prebuilt XCFramework, so you don't need Rust to use SwiftRage.
 
 ## Installation
 
-> [!WARNING]
-> SwiftRage can currently only be built from a checkout of this repository, with `swift build` and `swift test`. The Rust library is linked with an unsafe linker flag whose path only matches SwiftPM's own build directory for this package. It is not found when SwiftRage is a dependency of another package or an Xcode project, including as a local package, and SwiftPM doesn't allow unsafe flags in versioned dependencies. The build plugin also only builds the Rust library for the host Mac, not for iOS. There is no tagged release yet. Distributing a prebuilt XCFramework as a binary target would fix all of these.
+Add SwiftRage to your `Package.swift`:
 
-### Building
-
-SwiftRage uses a Swift Package Manager Build Tool Plugin to automatically build the Rust FFI library and generate Swift bindings during the build process.
-
-1. Clone the repository:
-```bash
-git clone https://github.com/matiaskorhonen/swift-rage.git
-cd swift-rage
+```swift
+dependencies: [
+    .package(url: "https://github.com/matiaskorhonen/swift-rage.git", from: "0.1.0"),
+],
+targets: [
+    .target(
+        name: "MyApp",
+        dependencies: [.product(name: "SwiftRage", package: "swift-rage")]
+    ),
+]
 ```
 
-2. Download the Rust dependencies (needed once, and again after the Rust dependencies change):
-```bash
-cargo fetch
-```
+In Xcode, choose **File > Add Package Dependencies…** and enter `https://github.com/matiaskorhonen/swift-rage.git`.
 
-The SwiftPM sandbox blocks network access during builds, so the build plugin can only use crates that are already in the cargo cache.
-
-3. Build the Swift package (this will automatically build Rust and generate bindings):
-```bash
-swift build
-```
-
-4. Run tests:
-```bash
-swift test
-```
-
-The first build compiles the Rust crates and takes a minute or two; later builds reuse them.
-
-If you build with a custom `--scratch-path`, set `SWIFT_RAGE_LIB_DIR` to `<scratch-path>/plugins/outputs/<package-directory-name>/SwiftRage/destination/RustBuildPlugin/cargo/release` so the linker can find the Rust library.
-
-### Building the Rust library for iOS
-
-The Rust FFI library builds for iOS devices and the iOS Simulator:
-
-```bash
-rustup target add aarch64-apple-ios aarch64-apple-ios-sim
-```
-
-```bash
-IPHONEOS_DEPLOYMENT_TARGET=26.0 cargo build --release -p swift-rage-ffi --target aarch64-apple-ios
-```
-
-```bash
-IPHONEOS_DEPLOYMENT_TARGET=26.0 cargo build --release -p swift-rage-ffi --target aarch64-apple-ios-sim
-```
-
-The static libraries are written to `target/<target>/release/libswift_rage_ffi.a`.
+SwiftPM downloads the XCFramework (about 30 MB) from the GitHub release that matches the version.
 
 ## Quick Start
 
@@ -230,20 +197,44 @@ do {
 
 ## Architecture
 
-SwiftRage uses [UniFFI](https://mozilla.github.io/uniffi-rs/) to generate Swift bindings for the Rust [age library](https://github.com/str4d/rage). The FFI interface is defined in `swift-rage-ffi/src/swift_rage.udl` and implemented in `swift-rage-ffi/src/lib.rs`; the public Swift API in `Sources/SwiftRage/SwiftRage.swift` wraps it. The generated bindings are internal to the module.
+SwiftRage uses [UniFFI](https://mozilla.github.io/uniffi-rs/) to generate Swift bindings for the Rust [age library](https://github.com/str4d/rage). The FFI interface is defined in `swift-rage-ffi/src/swift_rage.udl` and implemented in `swift-rage-ffi/src/lib.rs`; the public Swift API in `Sources/SwiftRage/SwiftRage.swift` wraps it.
 
-### Build System
+The UniFFI bindings in `Sources/SwiftRage/Generated/swift_rage.swift` are generated, and checked in so that SwiftRage builds without Rust. Their declarations are made `internal` so that they stay out of SwiftRage's public API.
 
-The project uses a Swift Package Manager Build Tool Plugin (`Plugins/RustBuildPlugin`) that automatically:
-1. Builds the Rust FFI library (`swift-rage-ffi`) as a static library using Cargo
-2. Generates Swift bindings from the UniFFI definition (`swift_rage.udl`)
-3. Integrates the generated code into the Swift build process
+## Development
 
-All of the plugin's output, including Cargo's target directory, goes into the plugin work directory under `.build/plugins/outputs/`, which is the only place a build tool plugin may write to under the SwiftPM sandbox. `Package.swift` adds that directory to the linker search path, because plugins cannot pass libraries to the linker themselves.
+Working on SwiftRage itself needs Rust (stable, installed with [rustup](https://rustup.rs)) and Xcode.
 
-The C header for the FFI, `swift-rage-ffi/swift_rageFFI.h`, is checked in because the `SwiftRageFFI` system library target needs it. When the UDL changes, the build fails and prints the path of the regenerated header to copy over the checked-in one.
+### Building the XCFramework
 
-The plugin runs Cargo with a minimal environment (`PATH`, `HOME` and any `CARGO_HOME`, `RUSTUP_HOME` or `RUSTUP_TOOLCHAIN`). SwiftPM exports its build settings to plugin commands, and `MACOSX_DEPLOYMENT_TARGET` in particular stops rustc from loading proc-macro crates on macOS.
+```bash
+scripts/build-xcframework.sh
+```
+
+The script:
+1. Builds `swift-rage-ffi` as a static library for macOS (arm64 and x86_64), iOS (arm64) and the iOS Simulator (arm64 and x86_64), installing missing Rust targets with rustup
+2. Regenerates the Swift bindings in `Sources/SwiftRage/Generated`
+3. Combines the libraries, with the C header and modulemap, into `build/SwiftRageFFI.xcframework`
+4. Zips it into `build/SwiftRageFFI.xcframework.zip` and prints the zip's checksum
+
+Cargo runs with a minimal environment (`PATH`, `HOME` and any `CARGO_HOME`, `RUSTUP_HOME` or `RUSTUP_TOOLCHAIN`), because build settings like `MACOSX_DEPLOYMENT_TARGET` stop rustc from loading proc-macro crates on macOS.
+
+By default, `Package.swift` uses the XCFramework from the release in `ffiReleaseURL`. Set `SWIFT_RAGE_LOCAL_FFI` to use the one in `build/` instead:
+
+```bash
+SWIFT_RAGE_LOCAL_FFI=1 swift test
+```
+
+Do this after any change to the Rust code or the UDL, and commit the regenerated bindings with it: UniFFI checks at runtime that the bindings match the library. CI fails if the committed bindings are out of date.
+
+### Releasing
+
+`Package.swift` must contain the checksum of the release's XCFramework zip before the release is tagged, so releasing takes two steps:
+
+1. Run the **Release** workflow from the Actions tab (or `gh workflow run release.yml -f version=0.2.0`). It builds the XCFramework, runs the tests, attaches the zip to a draft release for that version, and prints the `ffiReleaseURL` and `ffiReleaseChecksum` lines for `Package.swift` in the run summary.
+2. Update those two lines in `Package.swift`, commit, and push a tag with the version (e.g. `0.2.0`). The tag build checks that the URL and checksum match the draft release's zip, publishes the release, and runs the tests against the published XCFramework.
+
+If the Rust code changes after step 1, run the workflow again: it replaces the draft's zip.
 
 ## Testing
 
@@ -251,6 +242,8 @@ Run the tests with:
 ```bash
 swift test
 ```
+
+Add `SWIFT_RAGE_LOCAL_FFI=1` to test against a local build of the XCFramework.
 
 The SSH key fixtures and some encrypted files in `Tests/SwiftRageTests/Fixtures` were created with OpenSSH and the [Go age CLI](https://github.com/FiloSottile/age), to test interoperability. The SSH keys' passphrase is `snakeoil`.
 

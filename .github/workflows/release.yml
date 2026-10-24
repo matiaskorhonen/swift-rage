@@ -1,0 +1,117 @@
+name: Release
+
+# Releasing takes two steps, because Package.swift must contain the checksum of the
+# XCFramework zip before the release is tagged:
+#
+# 1. Run this workflow manually with the version. It builds the zip and attaches it
+#    to a draft release for that version, and prints the url and checksum.
+# 2. Put them in Package.swift, commit, and push a tag with the version. The tag
+#    build checks that Package.swift matches the draft's zip, then publishes it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, e.g. 0.1.0
+        required: true
+  push:
+    tags: [ '*' ]
+
+env:
+  ZIP_NAME: SwiftRageFFI.xcframework.zip
+
+jobs:
+  build:
+    name: Build XCFramework
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: aarch64-apple-darwin,x86_64-apple-darwin,aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+    - name: Build the XCFramework
+      run: scripts/build-xcframework.sh
+
+    - name: Check that the vendored bindings are up to date
+      run: git diff --exit-code Sources/SwiftRage/Generated
+
+    - name: Test with the XCFramework
+      run: swift test
+      env:
+        SWIFT_RAGE_LOCAL_FFI: 1
+
+    - name: Attach the zip to a draft release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        if gh release view "$VERSION" --json isDraft --jq .isDraft 2>/dev/null | grep -qx false; then
+          echo "::error::Release $VERSION is already published"
+          exit 1
+        elif gh release view "$VERSION" >/dev/null 2>&1; then
+          gh release upload "$VERSION" "build/$ZIP_NAME" --clobber
+        else
+          gh release create "$VERSION" "build/$ZIP_NAME" --draft --title "$VERSION" --target "$GITHUB_SHA"
+        fi
+
+        checksum="$(shasum -a 256 "build/$ZIP_NAME" | cut -d ' ' -f 1)"
+        url="https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/$ZIP_NAME"
+        {
+          echo "Draft release $VERSION is ready. Put this in Package.swift, commit, and push the tag $VERSION:"
+          echo
+          echo '```swift'
+          echo "let ffiReleaseURL = \"$url\""
+          echo "let ffiReleaseChecksum = \"$checksum\""
+          echo '```'
+        } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Publish release
+    if: github.event_name == 'push'
+    runs-on: macos-26
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Check Package.swift against the draft release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ github.ref_name }}
+      run: |
+        expected_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/$ZIP_NAME"
+        url="$(sed -nE 's/^let ffiReleaseURL = "(.*)"$/\1/p' Package.swift)"
+        checksum="$(sed -nE 's/^let ffiReleaseChecksum = "(.*)"$/\1/p' Package.swift)"
+        if [ "$url" != "$expected_url" ]; then
+          echo "::error::ffiReleaseURL in Package.swift is '$url', expected '$expected_url'"
+          exit 1
+        fi
+
+        if ! gh release download "$VERSION" --pattern "$ZIP_NAME" --dir "$RUNNER_TEMP"; then
+          echo "::error::No $ZIP_NAME in a release for $VERSION. Run the Release workflow for $VERSION first."
+          exit 1
+        fi
+        actual="$(shasum -a 256 "$RUNNER_TEMP/$ZIP_NAME" | cut -d ' ' -f 1)"
+        if [ "$checksum" != "$actual" ]; then
+          echo "::error::ffiReleaseChecksum in Package.swift is $checksum, but the release's zip has $actual"
+          exit 1
+        fi
+
+    - name: Publish the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ github.ref_name }}
+      run: gh release edit "$VERSION" --draft=false --latest --verify-tag
+
+    - name: Test with the released XCFramework
+      run: swift test
