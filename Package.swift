@@ -4,8 +4,8 @@ import PackageDescription
 // The Rust FFI library ships as a prebuilt XCFramework, built by
 // scripts/build-xcframework.sh and attached to each GitHub release.
 // The release workflow updates these and checks the checksum.
-let ffiReleaseURL = "https://github.com/matiaskorhonen/swift-rage/releases/download/0.1.0/SwiftRageFFI.xcframework.zip"
-let ffiReleaseChecksum = "dcdb0b306678af72c7b7146422695cf9cddfd7bb4f671d7e00256197e942585c"
+let ffiReleaseURL = "https://github.com/matiaskorhonen/swift-rage/releases/download/0.1.1/SwiftRageFFI.xcframework.zip"
+let ffiReleaseChecksum = "85b4d015f28f53ba6f9b415bba68d016d941b996419b8c44d92633d3dc816edc"
 
 // Set SWIFT_RAGE_LOCAL_FFI=1 to use the XCFramework that scripts/build-xcframework.sh
 // builds in build/, e.g. after changing the Rust code.
